@@ -561,6 +561,10 @@ if 'filled_prompt' not in st.session_state:
 if 'saved_prompt' not in st.session_state:
     st.session_state.saved_prompt = ""
 
+# 初始化生成记录状态
+if 'has_generated' not in st.session_state:
+    st.session_state.has_generated = False
+
 def add_to_history(prompt, image_bytes, seed, duration):
     """将生成的图片添加到历史记录的最前面"""
     timestamp = datetime.now().strftime("%H:%M:%S")
@@ -574,9 +578,12 @@ def add_to_history(prompt, image_bytes, seed, duration):
         "time": timestamp,
         "duration": f"{duration:.2f}s"
     })
+    # 标记已有生成记录
+    st.session_state.has_generated = True
 
 def clear_history():
     st.session_state.history = []
+    st.session_state.has_generated = False
 
 def start_generating():
     """点击按钮时的回调：设置状态为生成中"""
@@ -768,8 +775,8 @@ with col3:
 # 分隔线
 st.markdown('<div style="height: 1px; background: linear-gradient(90deg, rgba(102, 126, 234, 0.3), rgba(240, 147, 251, 0.1), transparent); margin: 1rem 0;"></div>', unsafe_allow_html=True)
 
-# 快速示例提示 - 移除条件限制，让示例始终显示
-if not st.session_state.is_generating:
+# 快速示例提示 - 只在非生成状态、没有输入内容且从未生成时显示
+if not st.session_state.is_generating and not st.session_state.saved_prompt and not st.session_state.has_generated:
     st.markdown('<div style="margin-top: 0.5rem; text-align: center;"><h4 style="color: rgba(255,255,255,0.9); margin-bottom: 0.8rem;">💡 灵感示例</h4>', unsafe_allow_html=True)
 
     # 使用列布局创建灵感按钮
