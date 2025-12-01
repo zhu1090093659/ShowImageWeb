@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShowImageWeb - AI图像生成器</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✨</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Variables */
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #13B497 0%, #59D4A8 100%);
+            --warning-gradient: linear-gradient(135deg, #FFA500 0%, #FF6347 100%);
+            --glass-bg: rgba(255, 255, 255, 0.15);
+            --glass-border: rgba(255, 255, 255, 0.18);
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 25px rgba(0,0,0,0.1);
+            --shadow-xl: 0 20px 40px rgba(0,0,0,0.15);
+            --border-radius-sm: 12px;
+            --border-radius-md: 16px;
+            --border-radius-lg: 24px;
+            --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-normal: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-slow: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        /* Background animation */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+            z-index: -1;
+            animation: floatGradient 20s ease infinite;
+        }
+
+        @keyframes floatGradient {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(-20px, -20px) rotate(1deg); }
+            66% { transform: translate(20px, -10px) rotate(-1deg); }
+        }
+
+        /* Layout */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #0f0f23 100%);
+            padding: 2rem 1.5rem;
+            border-right: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .sidebar-header h1 {
+            background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 2rem;
+            font-weight: 800;
+            animation: glow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { filter: drop-shadow(0 0 20px rgba(102, 126, 234, 0.3)); }
+            to { filter: drop-shadow(0 0 30px rgba(240, 147, 251, 0.5)); }
+        }
+
+        .divider {
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+            border-radius: 5px;
+            margin: 1.5rem 0;
+        }
+
+        .divider-thin {
+            height: 1px;
+            background: linear-gradient(90deg, rgba(102, 126, 234, 0.3), rgba(102, 126, 234, 0.1), transparent);
+            margin: 1rem 0;
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title.api { color: #667eea; }
+        .section-title.params { color: #764ba2; }
+        .section-title.ui { color: #f093fb; }
+        .section-title.stats { color: #13B497; }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: #e5e7eb;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: var(--border-radius-sm);
+            color: #ffffff;
+            font-size: 0.95rem;
+            transition: var(--transition-normal);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(102, 126, 234, 0.8);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius-sm);
+            cursor: pointer;
+            transition: var(--transition-normal);
+        }
+
+        .toggle-group:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .toggle {
+            width: 48px;
+            height: 26px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 13px;
+            position: relative;
+            transition: var(--transition-normal);
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: var(--transition-normal);
+        }
+
+        .toggle.active {
+            background: var(--primary-gradient);
+        }
+
+        .toggle.active::after {
+            left: 25px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius-sm);
+            padding: 1rem;
+            text-align: center;
+            transition: var(--transition-normal);
+        }
+
+        .stat-card:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .stat-card .label {
+            font-size: 0.75rem;
+            color: #e5e7eb;
+            margin-top: 0.3rem;
+        }
+
+        .btn-clear {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255,100,100,0.2);
+            border: 1px solid rgba(255,100,100,0.3);
+            border-radius: var(--border-radius-sm);
+            color: #ff6b6b;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition-normal);
+            margin-top: 1rem;
+        }
+
+        .btn-clear:hover {
+            background: rgba(255,100,100,0.3);
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            margin-left: 320px;
+            padding: 2rem 3rem;
+        }
+
+        .main-header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: titleFloat 6s ease-in-out infinite;
+        }
+
+        @keyframes titleFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .main-header h1 {
+            font-size: 3.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #ffffff, #f0f0f0, #ffffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 50px rgba(255,255,255,0.3);
+            margin-bottom: 0.5rem;
+        }
+
+        .main-header p {
+            font-size: 1.2rem;
+            color: rgba(255,255,255,0.9);
+        }
+
+        /* Input section */
+        .input-section {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            align-items: flex-start;
+        }
+
+        .prompt-container {
+            flex: 1;
+        }
+
+        .prompt-input {
+            width: 100%;
+            min-height: 120px;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: var(--border-radius-md);
+            color: #ffffff;
+            font-size: 1rem;
+            font-family: inherit;
+            resize: vertical;
+            transition: var(--transition-normal);
+        }
+
+        .prompt-input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(102, 126, 234, 0.8);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .prompt-input::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        .prompt-input:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-generate {
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #FF6B6B, #FFE66D, #4ECDC4, #667eea);
+            background-size: 300% 300%;
+            animation: gradientShift 3s ease infinite;
+            border: none;
+            border-radius: var(--border-radius-sm);
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: var(--transition-normal);
+            box-shadow: var(--shadow-md);
+            min-width: 160px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .btn-generate::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-generate:hover::before {
+            left: 100%;
+        }
+
+        .btn-generate:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-generate:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Inspiration buttons */
+        .inspiration-section {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .inspiration-section h4 {
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 1rem;
+        }
+
+        .inspiration-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            justify-content: center;
+        }
+
+        .btn-inspiration {
+            padding: 0.6rem 1.2rem;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--border-radius-sm);
+            color: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition-normal);
+        }
+
+        .btn-inspiration:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+        }
+
+        /* Status section */
+        .status-section {
+            margin-bottom: 2rem;
+            display: none;
+        }
+
+        .status-section.active {
+            display: block;
+        }
+
+        .status-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--border-radius-lg);
+            padding: 1.5rem;
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .status-header h3 {
+            font-size: 1.1rem;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.8rem;
+        }
+
+        .progress-bar .progress {
+            height: 100%;
+            background: var(--primary-gradient);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .status-text {
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.8);
+        }
+
+        /* Gallery section */
+        .gallery-section {
+            margin-top: 3rem;
+        }
+
+        .gallery-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .gallery-header h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .gallery-header .accent-line {
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb, #667eea);
+            background-size: 300% 100%;
+            animation: gradientShift 3s ease infinite;
+            border-radius: 5px;
+            margin: 0 auto;
+            width: 200px;
+        }
+
+        .gallery-empty {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .gallery-empty .icon {
+            font-size: 5rem;
+            margin-bottom: 2rem;
+        }
+
+        .gallery-empty h3 {
+            color: #667eea;
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+        }
+
+        .gallery-empty p {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .gallery-features {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+        }
+
+        .gallery-features span {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .gallery-features span:nth-child(1) { background: rgba(102, 126, 234, 0.2); }
+        .gallery-features span:nth-child(2) { background: rgba(240, 147, 251, 0.2); }
+        .gallery-features span:nth-child(3) { background: rgba(19, 180, 151, 0.2); }
+
+        .gallery-grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .gallery-grid.cols-1 { grid-template-columns: 1fr; }
+        .gallery-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+        .gallery-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+        .gallery-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+        .gallery-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--border-radius-md);
+            overflow: hidden;
+            transition: var(--transition-normal);
+            box-shadow: var(--shadow-md);
+        }
+
+        .gallery-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .gallery-card .image-container {
+            aspect-ratio: 1/1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .gallery-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: var(--transition-slow);
+        }
+
+        .gallery-card:hover img {
+            transform: scale(1.05);
+        }
+
+        .gallery-card .image-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            color: white;
+            padding: 1rem;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: var(--transition-normal);
+        }
+
+        .gallery-card:hover .image-info {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .gallery-card .card-actions {
+            padding: 0.8rem;
+        }
+
+        .btn-download {
+            width: 100%;
+            padding: 0.7rem;
+            background: var(--success-gradient);
+            border: none;
+            border-radius: var(--border-radius-sm);
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-normal);
+        }
+
+        .btn-download:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(19, 180, 151, 0.3);
+        }
+
+        /* Gallery stats */
+        .gallery-stats {
+            margin-top: 3rem;
+            text-align: center;
+        }
+
+        .gallery-stats h4 {
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        .gallery-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .gallery-stat-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--border-radius-md);
+            padding: 1.5rem;
+            transition: var(--transition-normal);
+        }
+
+        .gallery-stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+
+        .gallery-stat-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .gallery-stat-card .label {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.8);
+            margin-top: 0.3rem;
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 4rem;
+            padding: 2rem 0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+            color: rgba(255,255,255,0.6);
+        }
+
+        footer .features {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        footer .copyright {
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        footer .copyright .brand {
+            color: #667eea;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            border-radius: var(--border-radius-sm);
+            color: white;
+            font-size: 0.95rem;
+            z-index: 1000;
+            transform: translateX(150%);
+            transition: var(--transition-normal);
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.error {
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .toast.success {
+            border-left: 4px solid #13B497;
+        }
+
+        /* Success celebration */
+        .celebration {
+            text-align: center;
+            margin: 1.5rem 0;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .celebration h3 {
+            color: #13B497;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-gradient);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary-gradient);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 280px;
+            }
+            .main-content {
+                margin-left: 280px;
+                padding: 1.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                position: relative;
+                height: auto;
+            }
+            .main-content {
+                margin-left: 0;
+                padding: 1.5rem;
+            }
+            .main-header h1 {
+                font-size: 2.5rem;
+            }
+            .input-section {
+                flex-direction: column;
+            }
+            .btn-generate {
+                width: 100%;
+            }
+            .gallery-grid.cols-3,
+            .gallery-grid.cols-4 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .gallery-stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .gallery-grid.cols-2,
+            .gallery-grid.cols-3,
+            .gallery-grid.cols-4 {
+                grid-template-columns: 1fr;
+            }
+            .inspiration-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="divider"></div>
+                <h1>控制台</h1>
+            </div>
+
+            <!-- API Configuration -->
+            <div class="section-title api">🔑 API 配置</div>
+            <div class="form-group">
+                <label>🌐 API Endpoint</label>
+                <input type="text" id="apiUrl" value="https://z-api.aioec.tech/proxy/generate" placeholder="API接口地址">
+            </div>
+            <div class="form-group">
+                <label>🔐 API Key</label>
+                <input type="password" id="apiKey" placeholder="sk-...">
+            </div>
+
+            <div class="divider-thin"></div>
+
+            <!-- Generation Parameters -->
+            <div class="section-title params">⚙️ 生成参数</div>
+            <div class="form-group">
+                <label>🎲 随机种子</label>
+                <input type="number" id="seedInput" value="42">
+            </div>
+            <div class="toggle-group" id="randomToggle">
+                <div class="toggle active" id="toggleBtn"></div>
+                <span>🎯 随机种子模式</span>
+            </div>
+
+            <div class="divider-thin"></div>
+
+            <!-- UI Settings -->
+            <div class="section-title ui">🎨 界面设置</div>
+            <div class="form-group">
+                <label>📐 画廊列数</label>
+                <select id="galleryCols">
+                    <option value="1">1 列</option>
+                    <option value="2" selected>2 列</option>
+                    <option value="3">3 列</option>
+                    <option value="4">4 列</option>
+                </select>
+            </div>
+
+            <div class="divider-thin"></div>
+
+            <!-- Statistics -->
+            <div class="section-title stats">📊 统计信息</div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="value" id="totalImages">0</div>
+                    <div class="label">🖼️ 已生成</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="avgDuration">0s</div>
+                    <div class="label">⚡ 平均耗时</div>
+                </div>
+            </div>
+            <button class="btn-clear" id="clearHistory" style="display: none;">🗑️ 清空历史记录</button>
+
+            <div class="divider-thin" style="margin-top: 2rem;"></div>
+            <p style="text-align: center; font-size: 0.8rem; color: #e5e7eb;">✨ Powered by AI</p>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="main-header">
+                <h1>ShowImageWeb</h1>
+                <p>🎨 AI图像生成 - 将您的想象力转化为视觉艺术</p>
+            </div>
+
+            <!-- Input Section -->
+            <div class="input-section">
+                <div class="prompt-container">
+                    <textarea class="prompt-input" id="promptInput" placeholder="🎯 描述您的创意... 例如：一座漂浮在云端的未来城市，玻璃建筑反射着阳光，8K超高清"></textarea>
+                </div>
+                <button class="btn-generate" id="generateBtn">✨ 立即生成</button>
+            </div>
+
+            <!-- Inspiration Section -->
+            <div class="inspiration-section" id="inspirationSection">
+                <h4>💡 灵感示例</h4>
+                <div class="inspiration-buttons">
+                    <button class="btn-inspiration" data-prompt="一座宏伟的童话城堡坐落在云朵之上，高耸的塔楼闪烁着金色的光芒">🏰 童话城堡</button>
+                    <button class="btn-inspiration" data-prompt="春日樱花盛开的日式庭院，粉色花瓣飘落在青石板上">🌸 樱花庭院</button>
+                    <button class="btn-inspiration" data-prompt="未来主义科幻太空站，巨大的环形结构悬浮在星空之中">🚀 科幻太空站</button>
+                    <button class="btn-inspiration" data-prompt="古老的巨龙守护着神秘的森林入口，鳞片在月光下闪闪发亮">🐉 巨龙守护者</button>
+                    <button class="btn-inspiration" data-prompt="赛博朋克风格的未来都市，霓虹灯闪烁的摩天大楼">🌆 赛博都市</button>
+                </div>
+            </div>
+
+            <!-- Status Section -->
+            <div class="status-section" id="statusSection">
+                <div class="status-card">
+                    <div class="status-header">
+                        <span id="statusIcon">🚀</span>
+                        <h3 id="statusTitle">AI 正在处理您的请求...</h3>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress" id="progressBar"></div>
+                    </div>
+                    <div class="status-text" id="statusText">准备中...</div>
+                </div>
+                <div class="celebration" id="celebration" style="display: none;">
+                    <h3>🎊 作品创作完成!</h3>
+                    <p style="color: rgba(255,255,255,0.9);">您的AI作品已添加到画廊中</p>
+                </div>
+            </div>
+
+            <!-- Gallery Section -->
+            <div class="gallery-section">
+                <div class="gallery-header">
+                    <h2>🎨 AI 作品画廊</h2>
+                    <div class="accent-line"></div>
+                </div>
+
+                <div class="gallery-empty" id="galleryEmpty">
+                    <div class="icon">🎨</div>
+                    <h3>开始您的创作之旅</h3>
+                    <p>还没有生成的图像，<br>在上方描述您的创意，让AI为您创作独特的艺术作品吧！</p>
+                    <div class="gallery-features">
+                        <span>✨ 高质量生成</span>
+                        <span>🚀 秒级出图</span>
+                        <span>💾 一键下载</span>
+                    </div>
+                </div>
+
+                <div class="gallery-grid cols-2" id="galleryGrid"></div>
+
+                <div class="gallery-stats" id="galleryStats" style="display: none;">
+                    <h4>📊 创作统计</h4>
+                    <div class="gallery-stats-grid">
+                        <div class="gallery-stat-card">
+                            <div class="value" id="statTotalImages">0</div>
+                            <div class="label">🖼️ 作品总数</div>
+                        </div>
+                        <div class="gallery-stat-card">
+                            <div class="value" id="statAvgDuration">0s</div>
+                            <div class="label">⚡ 平均耗时</div>
+                        </div>
+                        <div class="gallery-stat-card">
+                            <div class="value" id="statTotalDuration">0s</div>
+                            <div class="label">🕐 总时间</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer>
+                <div class="features">
+                    <span>🚀 <strong>极速生成</strong> - 秒级出图</span>
+                    <span>🎨 <strong>高品质</strong> - 专业AI算法</span>
+                    <span>💾 <strong>无限存储</strong> - 永久保存</span>
+                </div>
+                <p class="copyright">
+                    Powered by Advanced AI Technology | <span class="brand">ShowImageWeb</span> © 2025
+                </p>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Toast notification -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // State management
+        const state = {
+            history: [],
+            isGenerating: false,
+            useRandomSeed: true
+        };
+
+        // DOM elements
+        const elements = {
+            apiUrl: document.getElementById('apiUrl'),
+            apiKey: document.getElementById('apiKey'),
+            seedInput: document.getElementById('seedInput'),
+            toggleBtn: document.getElementById('toggleBtn'),
+            randomToggle: document.getElementById('randomToggle'),
+            galleryCols: document.getElementById('galleryCols'),
+            promptInput: document.getElementById('promptInput'),
+            generateBtn: document.getElementById('generateBtn'),
+            inspirationSection: document.getElementById('inspirationSection'),
+            statusSection: document.getElementById('statusSection'),
+            statusIcon: document.getElementById('statusIcon'),
+            statusTitle: document.getElementById('statusTitle'),
+            progressBar: document.getElementById('progressBar'),
+            statusText: document.getElementById('statusText'),
+            celebration: document.getElementById('celebration'),
+            galleryEmpty: document.getElementById('galleryEmpty'),
+            galleryGrid: document.getElementById('galleryGrid'),
+            galleryStats: document.getElementById('galleryStats'),
+            totalImages: document.getElementById('totalImages'),
+            avgDuration: document.getElementById('avgDuration'),
+            statTotalImages: document.getElementById('statTotalImages'),
+            statAvgDuration: document.getElementById('statAvgDuration'),
+            statTotalDuration: document.getElementById('statTotalDuration'),
+            clearHistory: document.getElementById('clearHistory'),
+            toast: document.getElementById('toast')
+        };
+
+        // Toast notification
+        function showToast(message, type = 'info') {
+            elements.toast.textContent = message;
+            elements.toast.className = `toast ${type} show`;
+            setTimeout(() => {
+                elements.toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Toggle random seed
+        elements.randomToggle.addEventListener('click', () => {
+            state.useRandomSeed = !state.useRandomSeed;
+            elements.toggleBtn.classList.toggle('active', state.useRandomSeed);
+        });
+
+        // Gallery columns
+        elements.galleryCols.addEventListener('change', () => {
+            const cols = elements.galleryCols.value;
+            elements.galleryGrid.className = `gallery-grid cols-${cols}`;
+        });
+
+        // Inspiration buttons
+        document.querySelectorAll('.btn-inspiration').forEach(btn => {
+            btn.addEventListener('click', () => {
+                elements.promptInput.value = btn.dataset.prompt;
+                elements.inspirationSection.style.display = 'none';
+            });
+        });
+
+        // Clear history
+        elements.clearHistory.addEventListener('click', () => {
+            state.history = [];
+            updateGallery();
+            updateStats();
+            showToast('历史记录已清空', 'success');
+        });
+
+        // Update progress
+        function updateProgress(percent, text) {
+            elements.progressBar.style.width = `${percent}%`;
+            elements.statusText.textContent = text;
+        }
+
+        // Update statistics
+        function updateStats() {
+            const count = state.history.length;
+            const totalDuration = state.history.reduce((sum, item) => sum + item.duration, 0);
+            const avgDuration = count > 0 ? totalDuration / count : 0;
+
+            elements.totalImages.textContent = count;
+            elements.avgDuration.textContent = `${avgDuration.toFixed(1)}s`;
+            elements.statTotalImages.textContent = count;
+            elements.statAvgDuration.textContent = `${avgDuration.toFixed(1)}s`;
+            elements.statTotalDuration.textContent = `${totalDuration.toFixed(0)}s`;
+            elements.clearHistory.style.display = count > 0 ? 'block' : 'none';
+            elements.galleryStats.style.display = count > 0 ? 'block' : 'none';
+        }
+
+        // Update gallery
+        function updateGallery() {
+            if (state.history.length === 0) {
+                elements.galleryEmpty.style.display = 'block';
+                elements.galleryGrid.innerHTML = '';
+                return;
+            }
+
+            elements.galleryEmpty.style.display = 'none';
+            elements.galleryGrid.innerHTML = state.history.map(item => `
+                <div class="gallery-card">
+                    <div class="image-container">
+                        <img src="data:image/png;base64,${item.base64}" alt="AI Generated Image" loading="lazy">
+                        <div class="image-info">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>⏱️ ${item.duration.toFixed(2)}s</span>
+                                <span>🌱 ${item.seed}</span>
+                            </div>
+                            <div style="font-size: 0.8rem; margin-top: 0.5rem; opacity: 0.8;">
+                                ${item.time}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn-download" onclick="downloadImage('${item.id}', '${item.base64}')">
+                            💾 下载作品 #${item.id.slice(-6)}
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Download image
+        function downloadImage(id, base64) {
+            const link = document.createElement('a');
+            link.href = `data:image/png;base64,${base64}`;
+            link.download = `AI-Art-${id}.png`;
+            link.click();
+        }
+
+        // Generate image
+        async function generateImage() {
+            const apiUrl = elements.apiUrl.value.trim();
+            const apiKey = elements.apiKey.value.trim();
+            const prompt = elements.promptInput.value.trim();
+
+            // Validation
+            if (!apiKey) {
+                showToast('🚫 请先在左侧侧边栏配置 API Key', 'error');
+                return;
+            }
+            if (!prompt) {
+                showToast('⚠️ 请输入提示词', 'error');
+                return;
+            }
+
+            // Set generating state
+            state.isGenerating = true;
+            elements.generateBtn.disabled = true;
+            elements.generateBtn.textContent = '⏳ 生成中...';
+            elements.promptInput.disabled = true;
+            elements.statusSection.classList.add('active');
+            elements.celebration.style.display = 'none';
+            elements.inspirationSection.style.display = 'none';
+
+            const seed = state.useRandomSeed 
+                ? Math.floor(Date.now() % 1000000000) 
+                : parseInt(elements.seedInput.value);
+
+            const startTime = performance.now();
+
+            try {
+                // Step 1: Validate
+                updateProgress(10, '🔍 验证生成参数...');
+                await new Promise(r => setTimeout(r, 300));
+
+                // Step 2: Connect
+                updateProgress(30, '🌐 连接AI服务器...');
+                await new Promise(r => setTimeout(r, 300));
+
+                // Step 3: Send request
+                updateProgress(50, '📤 发送创作指令...');
+                await new Promise(r => setTimeout(r, 300));
+
+                // Step 4: Processing
+                updateProgress(70, '🎨 AI 创作中...');
+
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        api_url: apiUrl,
+                        api_key: apiKey,
+                        prompt: prompt,
+                        seed: seed
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'API request failed');
+                }
+
+                if (!data.base64) {
+                    throw new Error('No image data received');
+                }
+
+                // Step 5: Complete
+                updateProgress(100, '✨ 作品完成!');
+
+                const duration = (performance.now() - startTime) / 1000;
+
+                // Add to history
+                const item = {
+                    id: String(Date.now()),
+                    prompt: prompt,
+                    base64: data.base64,
+                    seed: seed,
+                    time: new Date().toLocaleTimeString(),
+                    duration: duration
+                };
+
+                state.history.unshift(item);
+                updateGallery();
+                updateStats();
+
+                // Show celebration
+                elements.statusTitle.textContent = `🎉 成功生成! 耗时 ${duration.toFixed(2)} 秒`;
+                elements.statusIcon.textContent = '✅';
+                elements.celebration.style.display = 'block';
+                showToast('🎊 作品创作完成!', 'success');
+
+            } catch (error) {
+                elements.statusTitle.textContent = '❌ 生成失败';
+                elements.statusIcon.textContent = '❌';
+                elements.statusText.textContent = error.message;
+                showToast(`💥 错误: ${error.message}`, 'error');
+            } finally {
+                // Reset state
+                setTimeout(() => {
+                    state.isGenerating = false;
+                    elements.generateBtn.disabled = false;
+                    elements.generateBtn.textContent = '✨ 立即生成';
+                    elements.promptInput.disabled = false;
+                    elements.promptInput.value = '';
+                    
+                    setTimeout(() => {
+                        elements.statusSection.classList.remove('active');
+                        elements.progressBar.style.width = '0%';
+                    }, 2000);
+                }, 1000);
+            }
+        }
+
+        // Generate button click
+        elements.generateBtn.addEventListener('click', generateImage);
+
+        // Enter key to generate
+        elements.promptInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey && !state.isGenerating) {
+                generateImage();
+            }
+        });
+
+        // Initial state
+        updateStats();
+    </script>
+</body>
+</html>
+

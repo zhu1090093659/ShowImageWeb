@@ -6,60 +6,86 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Streamlit](https://img.shields.io/badge/Streamlit-1.29.0-red.svg)
+![Vercel](https://img.shields.io/badge/Vercel-Ready-black.svg)
 ![Docker](https://img.shields.io/badge/Docker-20.10+-blue.svg)
 
 </div>
 
-AI图像生成网页交互平台 - 基于Streamlit构建的Web应用，提供简洁的用户界面和实用的图像生成功能 - **对手机UI界面进行了优化**
+AI图像生成网页交互平台 - 支持 Vercel 一键部署，提供简洁的用户界面和实用的图像生成功能 - **对手机UI界面进行了优化**
+
 ## 应用预览
 
 ![ShowImageWeb Demo](assets/showimage-web-demo.png)
 ![ShowImageWeb Demo](assets/showimage-web-demo1.png)
+
 ## 项目结构
 
 ```
 showimageweb/
-├── app.py                    # 主应用文件（Streamlit界面）
+├── api/
+│   └── generate.py          # Vercel Serverless Function (API代理)
+├── public/
+│   ├── index.html           # 前端页面
+│   └── assets/              # 静态资源
+├── app.py                   # Streamlit版本 (Docker部署用)
+├── vercel.json              # Vercel部署配置
 ├── Dockerfile               # Docker构建配置
 ├── requirements.txt         # Python依赖包
 ├── docker-compose.yml       # Docker Compose配置
 ├── LICENSE                  # MIT许可证
-├── README.md                # 项目文档
-└── assets/
-    └── showimage-web-demo.png # 应用预览图
+└── README.md                # 项目文档
 ```
-
-## Key（可蹬）
-
-    sk-zKTGcw8llBFZLpXAAsxTmMSmCfY8DNfe
 
 ## 技术栈
 
-- **前端框架**: Streamlit 1.29.0+
-- **后端语言**: Python 3.9+
-- **容器化**: Docker & Docker Compose
-- **核心依赖**: requests, streamlit, base64
+- **前端**: 纯 HTML/CSS/JavaScript (Vercel版本)
+- **后端**: Python Serverless Functions
+- **部署**: Vercel / Docker
+- **核心依赖**: requests
 
 ## 特性
 
-- **高性能**: 基于Streamlit的快速响应界面
-- **美观UI**: 现代化的卡片式设计，支持自定义画廊列数
+- **高性能**: 基于 Serverless 的快速响应
+- **美观UI**: 现代化的卡片式设计，玻璃态效果
 - **响应式**: 自适应不同屏幕尺寸，适配移动端
-- **历史记录**: 自动保存生成记录，支持无限数量存储
+- **历史记录**: 自动保存生成记录（会话内）
 - **配置选项**: 支持随机/固定种子，自定义API配置
 - **实时状态**: 生成进度实时显示，带有时间统计
 - **一键下载**: PNG图片直接下载，自动命名
 - **通用API**: 兼容多种AI图像生成服务
-- **内存管理**: 智能存储管理，自动base64优化
 
 ## 快速开始
 
 ## 使用方式
 
-### 方式一：Docker 部署（灵活）
+### 方式一：Vercel 部署（推荐）⚡
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/kaima2022/showimageweb)
+
+**一键部署步骤：**
+
+1. 点击上方 "Deploy with Vercel" 按钮
+2. 登录/注册 Vercel 账号
+3. 选择仓库名称，点击 "Deploy"
+4. 等待部署完成，即可访问
+
+**手动部署：**
+
+```bash
+# 安装 Vercel CLI
+npm i -g vercel
+
+# 克隆项目
+git clone https://github.com/kaima2022/showimageweb.git
+cd ShowImageWeb
+
+# 部署到 Vercel
+vercel
+```
+
+### 方式二：Docker 部署（灵活）
 
 ```bash
 # 克隆项目
@@ -70,7 +96,7 @@ cd ShowImageWeb
 docker compose up -d
 ```
 
-### 方式二：非容器化直接运行（快速）
+### 方式三：本地开发
 
 ```bash
 # 克隆项目
@@ -79,22 +105,15 @@ cd ShowImageWeb
 
 # 安装依赖
 pip install -r requirements.txt
-# 启动
+
+# Streamlit 版本启动
 streamlit run app.py --server.address=0.0.0.0 --server.port=8501
 ```
 
 ### 访问应用
 
-```
-http://localhost:8501
-```
-
-## 如何更新？
-### 拉取最新代码并重建启动服务
-
-```
-  git pull origin main && docker compose up -d --build
-```
+- **Vercel**: 部署后自动生成域名
+- **Docker/本地**: `http://localhost:8501`
 
 ## API配置
 
@@ -117,21 +136,35 @@ http://localhost:8501
 - 自建AI图像服务
 - 任何支持标准格式的图像生成API
 
+## Vercel 部署说明
+
+### 项目结构
+
+| 文件/目录 | 用途 |
+|-----------|------|
+| `vercel.json` | Vercel 部署配置文件 |
+| `api/generate.py` | Python Serverless Function，处理图像生成请求 |
+| `public/index.html` | 前端静态页面 |
+| `public/assets/` | 静态资源文件 |
+
+### 环境要求
+
+- Vercel 账号
+- Python 3.9+ (Serverless Function)
+
+### 自定义域名
+
+1. 在 Vercel Dashboard 中选择项目
+2. 进入 Settings → Domains
+3. 添加自定义域名并配置 DNS
+
 ## 配置选项
 
-### 环境变量（可选）
-```bash
-# Streamlit配置
-STREAMLIT_SERVER_ADDRESS=0.0.0.0
-STREAMLIT_SERVER_PORT=8501
-STREAMLIT_SERVER_HEADLESS=true
-
-# 时区设置
-TZ=Asia/Shanghai
-```
-
-### 自定义配置
+### 界面设置
 - **画廊列数**: 1-4列可调
+- **随机种子模式**: 开启后每次生成使用不同种子
+
+### API设置
 - **API超时**: 默认60秒
 - **图片格式**: PNG格式输出
 - **文件命名**: 时间戳自动命名
